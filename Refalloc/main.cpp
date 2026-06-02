@@ -54,6 +54,7 @@ static void verify_memory(void* ptr, size_t size, uint32_t pattern)
 int main()
 {
     std::vector<Allocation> live;
+    size_t liveSize = 0;
 
     std::random_device rd;
     std::mt19937 rng(rd());
@@ -79,7 +80,7 @@ int main()
             // mix small / medium / large allocations
             int type = op_dist(rng);
 
-            if (type < 70)
+            if (type < 95)
                 size = size_dist(rng);          // small/medium
             else
                 size = large_dist(rng);         // large stress
@@ -96,6 +97,7 @@ int main()
             fill_memory(ptr, size, pattern);
 
             live.push_back({ ptr, size, pattern });
+            liveSize += size;
         }
         else
         {
@@ -109,17 +111,18 @@ int main()
 
             verify_memory(a.ptr, a.size, a.pattern);
 
-            rfree(a.ptr);
+            rfree(a.ptr);            
 
             live[idx] = live.back();
             live.pop_back();
+            liveSize -= a.size;
         }
 
         // occasional progress
-        if (i % 1000 == 0)
+        if (i % 10000 == 0 || i == ITERATIONS - 1)
         {
             std::cout << "ops: " << i
-                << " live: " << live.size()
+                << " live: " << live.size() << " approx " << (liveSize / (1024.0 * 1024.0)) << "MB"
                 << std::endl;
         }
     }
@@ -132,7 +135,7 @@ int main()
         rfree(a.ptr);
 
         // occasional progress
-        if (i % 1000 == 0)
+        if (i % 10000 == 0 || i == live.size() - 1)
         {
             std::cout << "freed " << i << std::endl;
         }

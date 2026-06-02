@@ -59,7 +59,8 @@ struct HeapPage {
 	AllocationKind pageAssociation;
 	BlockSequence* blockSeq;
 	size_t blockSeqFirstBlock;
-	size_t totalNumBlocks;
+	size_t totalFreeBlocks;
+	size_t totalBlocks;
 	HeapPage* next;
 	HeapPage* prev;
 };

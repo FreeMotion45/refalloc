@@ -1,6 +1,7 @@
 #include "cstdio"
 #include "refalloc.h"
 #include "assert.h"
+#include <cstddef>
 
 /*
 * `rnew` must, by design, always return a memory
@@ -101,7 +102,7 @@ size_t get_page_size() {
 void init_area(Area* area) {
 	area->freePages = NULL;
 	area->fullPages = NULL;
-	area->partialPages = NULL;
+	area->partialPages = NULL;	
 }
 
 void init_alloc() {	
@@ -448,6 +449,8 @@ void heuristic_push_partial_page_back() {
 	}
 
 	// Heurstically okay
+	// TODO: lol this is a bug!
+	// If next is better than the first, it should be the head!
 	if (firstPageMax <= nextPageMax) {
 		return;
 	}
@@ -520,7 +523,8 @@ void* alloc_heap(size_t numBytes) {
 		page->blockSeq->numBlocks = totalFreeBlocks;
 		page->blockSeq->next = NULL;
 		page->blockSeq->prev = NULL;
-		page->totalNumBlocks = totalFreeBlocks;
+		page->totalFreeBlocks = totalFreeBlocks;
+		page->totalBlocks = bytesToAllocate / MED_HEAP_BLOCK_SIZE;
 		page->prev = NULL;
 		page->blockSeq->used = false;
 
@@ -612,21 +616,21 @@ void* alloc_heap(size_t numBytes) {
 
 	heuristic_push_partial_page_back();
 
-	return (void*)((char*)blockSeq + mediumHeapAlignedHeaderSize);
+	return (void*)((char*)blockSeq + mediumHeapAllocAlignedHeaderSize);
 }
 
 void dealloc_heap(HeapPage* page, void* ptr) {
 	// Restore the block sequence header.
 	// Until pushing `block` back into the list,
 	// we are going to make sure that this will be detached.
-	BlockSequence* block = (BlockSequence*)((char*)ptr - mediumHeapAlignedHeaderSize);
+	BlockSequence* block = (BlockSequence*)((char*)ptr - mediumHeapAllocAlignedHeaderSize);
 
 	// This block is the last one if it ends the page.
 	// And if it the block with the highest address, obviously
 	// there are no more blocks with higher addresses.
 	// Therefore there exists a block to the right ONLY if it
 	// is not the last.
-	if (block->beginBlock + block->numBlocks != page->totalNumBlocks) {
+	if (block->beginBlock + block->numBlocks != page->totalBlocks) {
 		// So this isn't the last block sequence, lets check if we can merge with right block.
 		BlockSequence* rightSeq = (BlockSequence*)((char*)block + block->numBlocks * MED_HEAP_BLOCK_SIZE);
 		if (!rightSeq->used) {
@@ -751,7 +755,7 @@ void dealloc_heap(HeapPage* page, void* ptr) {
 
 	// If page is completely free, unlink from the partial pages.
 	// and push into the free page list.	
-	if (page->blockSeq->numBlocks == page->totalNumBlocks) {
+	if (page->blockSeq->numBlocks == page->totalFreeBlocks) {
 		page->next = mediumHeap.freePages;
 		page->prev = NULL;
 		if (mediumHeap.freePages != NULL) {
