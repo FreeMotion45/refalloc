@@ -449,9 +449,7 @@ void heuristic_push_partial_page_back() {
 	}
 
 	// Heurstically okay
-	// TODO: lol this is a bug!
-	// If next is better than the first, it should be the head!
-	if (firstPageMax <= nextPageMax) {
+	if (firstPageMax >= nextPageMax) {
 		return;
 	}
 
